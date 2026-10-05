@@ -1,0 +1,22 @@
+/* 1️⃣ Pretendard 폰트 불러오기 (가장 위에 추가) */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
+
+/* 2️⃣ Tailwind CSS 불러오기 (원래 있던 코드) */
+@import "tailwindcss";
+
+/* 3️⃣ 전역 폰트 적용 */
+body {
+  font-family: "Pretendard", -apple-system, BlinkMacSystemFont, system-ui,
+    Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR",
+    sans-serif;
+}
+/* ✅ 4️⃣ overscroll 및 전체 배경색 설정 */
+html,
+body {
+  background-color: #f6f7f9; /* 스크롤 당겼을 때 배경색 */
+  overscroll-behavior-y: contain; /* iOS에서 파란색 대신 이 배경 유지 */
+}
+
+#root {
+  background-color: #ffffff; /* 전체 루트 배경도 동일하게 */
+}

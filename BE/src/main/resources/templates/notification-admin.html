@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>공지사항 관리</title>
+  <style>
+    body { font-family: sans-serif; margin: 40px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background-color: #f2f2f2; }
+    form { margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>공지사항 관리 페이지</h1>
+
+  <form th:action="@{/notifications/admin/add}" method="post">
+    <input type="text" name="title" placeholder="제목" required />
+    <input type="text" name="message" placeholder="내용" required />
+    <input type="text" name="linkUrl" placeholder="링크" />
+    <input type="text" name="author" placeholder="작성자" />
+    <button type="submit">등록</button>
+  </form>
+
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th><th>제목</th><th>작성자</th><th>작성일</th><th>삭제</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr th:each="n : ${notifications}">
+        <td th:text="${n.id}"></td>
+        <td th:text="${n.title}"></td>
+        <td th:text="${n.author}"></td>
+        <td th:text="${n.createdAt}"></td>
+        <td>
+          <form th:action="@{'/notifications/admin/delete/' + ${n.id}}" method="post">
+            <button type="submit">삭제</button>
+          </form>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</body>
+</html>

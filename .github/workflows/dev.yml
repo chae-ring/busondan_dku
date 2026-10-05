@@ -1,0 +1,64 @@
+name: Deploy via Self-hosted Runner (Dev Server Docker & Nginx)
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  deploy:
+    runs-on: busondan-dev
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # --- 1. 프론트엔드 빌드 ---
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build frontend (Vite) ⚙️
+        env:
+          VITE_API_BASE: ${{ secrets.DEV_API_BASE_URL }}
+        working-directory: ./FE/web
+        run: |
+          npm install
+          npm run build
+
+      # --- 2. 백엔드 빌드 ---
+      - name: Build backend Docker Compose
+        env:
+          DB_DATABASE: ${{ secrets.DB_DATABASE }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          GGBIS_API_KEY: ${{ secrets.GGBIS_API_KEY }}
+          SUBWAY_API_KEY: ${{ secrets.SUBWAY_API_KEY }}
+          CORS_ALLOWED_ORIGINS: ${{ secrets.CORS_ALLOWED_ORIGINS_DEV }}
+        working-directory: BE
+        run: |
+          docker compose build
+
+      # --- 3. Nginx 배포  ---
+      - name: Deploy Frontend to Nginx
+        working-directory: ./FE/web
+        run: |
+          sudo cp -r dist/* /var/www/busondan/
+          sudo chown -R www-data:www-data /var/www/busondan/
+
+      # --- 4. 백엔드 배포 (로컬 Docker 재시작) ---
+      - name: Deploy & Restart docker compose
+        env:
+          DB_DATABASE: ${{ secrets.DB_DATABASE }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          GGBIS_API_KEY: ${{ secrets.GGBIS_API_KEY }}
+          SUBWAY_API_KEY: ${{ secrets.SUBWAY_API_KEY_DEV }}
+          CORS_ALLOWED_ORIGINS: ${{ secrets.CORS_ALLOWED_ORIGINS_DEV }}
+        working-directory: BE
+        run: |
+          docker compose down -v
+          docker compose up -d

@@ -1,0 +1,97 @@
+name: Deploy via Self-hosted Runner (Prod OCI Server Docker & R2)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: busondan-prod
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # --- 1. 프론트엔드 빌드 ---
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build frontend (Vite) ⚙️
+        working-directory: ./FE/web
+        env:
+          VITE_API_BASE: ${{ secrets.PROD_API_BASE_URL }}
+        run: |
+          npm install
+          npm run build
+
+      # --- 2. 백엔드 빌드 (로컬 Docker) ---
+      - name: Build backend Docker Compose
+        env:
+          DB_DATABASE: ${{ secrets.DB_DATABASE }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          GGBIS_API_KEY: ${{ secrets.GGBIS_API_KEY }}
+          SUBWAY_API_KEY: ${{ secrets.SUBWAY_API_KEY }}
+          CORS_ALLOWED_ORIGINS: ${{ secrets.CORS_ALLOWED_ORIGINS_PROD }}
+        working-directory: BE
+        run: |
+          docker compose build
+
+      # --- 3. R2 배포 ---
+      - name: Deploy Frontend to Cloudflare R2
+        working-directory: ./FE/web
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET_NAME }}
+        run: |
+          echo "--- 📦 Cloudflare Wrangler 설치 확인 ---"
+          npm install -g wrangler@latest
+
+          echo "--- 🧹 rclone 설치 중 ---"
+          curl https://rclone.org/install.sh | sudo bash || true
+
+          echo "--- ⚙️ rclone R2 설정 ---"
+          mkdir -p ~/.config/rclone
+          cat <<EOF > ~/.config/rclone/rclone.conf
+          [r2]
+          type = s3
+          provider = Cloudflare
+          access_key_id = ${R2_ACCESS_KEY_ID}
+          secret_access_key = ${R2_SECRET_ACCESS_KEY}
+          endpoint = https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com
+          EOF
+
+          echo "--- 🗑️ R2 버킷 [$R2_BUCKET] 비우는 중 ---"
+          rclone delete r2:${R2_BUCKET} --rmdirs || true
+          echo "✅ 기존 파일 정리 완료."
+
+           echo "--- ⬆️ 새 파일 동기화 시작 ---"
+          rclone sync dist r2:${R2_BUCKET} \
+            --progress \
+            --s3-acl public-read \
+            --fast-list \
+            --checksum
+
+          echo "🎉 모든 파일 업로드 완료!"
+
+      # --- 4. 백엔드 배포 ---
+      - name: Deploy & Restart docker compose
+        env:
+          DB_DATABASE: ${{ secrets.DB_DATABASE }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          GGBIS_API_KEY: ${{ secrets.GGBIS_API_KEY }}
+          SUBWAY_API_KEY: ${{ secrets.SUBWAY_API_KEY }}
+          CORS_ALLOWED_ORIGINS: ${{ secrets.CORS_ALLOWED_ORIGINS_PROD }}
+        working-directory: BE
+        run: |
+          docker compose down
+          docker compose up -d

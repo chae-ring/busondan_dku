@@ -1,0 +1,73 @@
+version: "3.8"
+
+services:
+  # 1. MySQL 서비스
+  db:
+    image: mysql:8.0
+    container_name: busonda_mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      TZ: Asia/Seoul
+    networks:
+      - busonda_network
+    ports:
+      - "20000:3306" # 외부 접속 포트:내부 컨테이너 포트
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=Asia/Seoul
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  # 2. Redis 서비스
+  redis:
+    image: redis:6-alpine
+    container_name: busonda_redis
+    restart: always
+    networks:
+      - busonda_network
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+
+  # 3. Spring Boot 애플리케이션 서비스
+  app:
+    container_name: busonda_app
+    # 현재 디렉터리의 Dockerfile을 사용하여 이미지를 빌드합니다.
+    build: .
+    restart: always
+    # db와 redis 서비스가 시작된 후에 app 서비스를 시작합니다.
+    depends_on:
+      - db
+      - redis
+    networks:
+      - busonda_network
+    ports:
+      - "5001:5001"
+    # application.properties에서 참조할 환경 변수들을 설정합니다.
+    environment:
+      # Docker 네트워크 내에서는 서비스 이름이 호스트명이 됩니다.
+      - DB_HOST=db
+      - REDIS_HOST=redis
+      - DB_DATABASE=${DB_DATABASE}
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - GGBIS_API_KEY=${GGBIS_API_KEY}
+      - SUBWAY_API_KEY=${SUBWAY_API_KEY}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS}
+    volumes:
+      - /logs:/app/logs
+
+volumes:
+  db_data:
+  redis_data:
+
+networks:
+  busonda_network:
+    driver: bridge
