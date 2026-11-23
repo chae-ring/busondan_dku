@@ -158,10 +158,11 @@
 
 <br/>
 
+
 <table>
   <tr>
     <th align="center">Role</th>
-    <th align="center">GitHub ID</th>
+    <th align="center">GitHub ID / Name</th>
   </tr>
   <tr>
     <td align="center">Frontend (App & Web)</td>
@@ -169,11 +170,14 @@
   </tr>
   <tr>
     <td align="center">Backend</td>
-    <td align="center">
-Kim-Taehyeong
-</td>
+    <td align="center">Kim-Taehyeong</td>
+  </tr>
+  <tr>
+    <td align="center">Designer</td>
+    <td align="center">Kim Ayoung</td>
   </tr>
 </table>
+
 
 </div>
 
